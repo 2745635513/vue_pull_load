@@ -13,12 +13,20 @@
           </div>
         </div>
       </Loading>
-      <div class="message-input"></div>
+      <div class="message-input">
+        <el-input
+          v-model="content"
+          @keyup.enter.native="handleSubmit"
+        ></el-input>
+      </div>
     </div>
   </div>
 </template>
 <script>
+// ES6 import or TypeScript
+import { io } from "socket.io-client";
 import Loading from "../components/Loading.vue";
+
 export default {
   name: "More",
   components: { Loading },
@@ -26,17 +34,47 @@ export default {
     return {
       list: [],
       loading: false,
-      page: 1
+      content: ""
     };
   },
   mounted() {
     this.load();
+    const socket = io("http://127.0.0.1:3000");
+    this.socket = socket;
+    socket.on("new message", data => {
+      this.addChatMessage(data);
+    });
   },
   methods: {
+    addChatMessage(data, options = {}) {
+      // Don't fade the message in if there is an 'X was typing'
+      console.log("接收到的：", data);
+      this.list.push({
+        id: Math.random()
+          .toString()
+          .substr(2),
+        date: new Date().toLocaleDateString(),
+        text: data.message
+      });
+      this.$nextTick(() => {
+        this.$refs.list.scrollTop = this.$refs.list.scrollHeight;
+      });
+    },
+    sendMessage() {
+      const message = this.content;
+      const username = "frace";
+      this.addChatMessage({ username, message });
+      // tell server to execute 'new message' and send along one parameter
+      this.socket.emit("new message", message);
+    },
     handleLoad(e) {
       if (e.target.scrollTop === 0 && !this.loading) {
         this.load();
       }
+    },
+    handleSubmit() {
+      console.log(">>>", this.content);
+      this.sendMessage();
     },
     load() {
       const height = this.$refs.list.scrollHeight;
